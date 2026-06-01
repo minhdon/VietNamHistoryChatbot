@@ -1,0 +1,21 @@
+# Ignore Environment variables files
+.env
+*.env
+.env.*
+
+# Ignore Parquet data files
+*.parquet
+**/*.parquet
+
+# Database Postgres
+DB_USER=minh_admin
+DB_PASSWORD=123456789
+DB_NAME=news_intelligence
+
+# Cấu hình pgAdmin
+PGADMIN_EMAIL=admin@admin.com
+PGADMIN_PASSWORD=123456789
+
+# Cấu hình Neo4j (Nếu sau này bạn muốn bật lại xác thực auth)
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=123456789

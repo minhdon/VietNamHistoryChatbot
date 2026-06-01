@@ -1,0 +1,8 @@
+datasets
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+pgadmin4
+tqdm
+underthesea
