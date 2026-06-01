@@ -1,71 +1,61 @@
-# Kiến trúc Hệ thống Phân tích Tin tức & Sinh văn bản dựa trên Tri thức đồ thị (GraphRAG)
+# News Analysis & Text Generation System Architecture based on Knowledge Graph (GraphRAG)
 
-Dự án này xây dựng một hệ thống RAG (Retrieval-Augmented Generation) nâng cao, kết hợp giữa **Cơ sở dữ liệu Đồ thị (Neo4j)**, **Vector Embedding** và **Mô hình Ngôn ngữ Lớn (LLM)**. Hệ thống có khả năng trích xuất thông tin, xây dựng Knowledge Graph từ dữ liệu thô và trả lời câu hỏi của người dùng theo ngữ cảnh kèm theo bộ nhớ hội thoại (Memory Cache).
+This project builds an advanced RAG (Retrieval-Augmented Generation) system, integrating a **Graph Database (Neo4j)**, **Vector Embeddings**, and **Large Language Models (LLMs)**. The system is capable of extracting information, building a Knowledge Graph from raw data, and answering user queries contextually while maintaining conversational memory (Memory Cache).
 
-## System Pipeline (Sơ đồ Hệ thống)
+## System Pipeline
 
 ![System Pipeline](images/Pipeline.png)
-*(Lưu ý: Đổi tên file ảnh thành tiếng Anh không dấu, ví dụ `system-pipeline.png` và cập nhật lại đường dẫn ở trên để hiển thị tốt nhất trên GitHub)*
 
 ---
 
-## Quy trình Hoạt động (Workflow)
+## Workflow
 
-Hệ thống được chia làm hai luồng (pipeline) chính: **Luồng Nhập liệu (Data Ingestion)** và **Luồng Truy vấn (Query & Generation)**.
+The system is divided into two main pipelines: the **Data Ingestion Pipeline** and the **Query & Generation Pipeline**.
 
-### Luồng 1: Xử lý dữ liệu và Xây dựng Đồ thị (Top Pipeline)
-Quá trình này biến đổi dữ liệu dạng bảng/văn bản thô thành mạng lưới tri thức và lưu vào Neo4j.
-* **(1) Preprocessing:** Tiền xử lý tập dữ liệu thô (Dataset) để làm sạch và chuẩn hóa.
-* **(2) Extract Edges & Nodes:** Trích xuất các thực thể (Nodes) và mối quan hệ (Edges) từ dữ liệu để hình thành cấu trúc Đồ thị (Graph).
-* **(3) Generate Embedding:** Đưa các thông tin đồ thị qua mô hình nhúng (Embedding Model) để chuyển đổi văn bản/thực thể thành các vector toán học.
-* **(4) Save Embedding:** Lưu trữ các Nodes, Edges và Vector Embeddings vào cơ sở dữ liệu **Neo4j Database**.
+### Pipeline 1: Data Processing and Graph Construction (Top Pipeline)
+This process transforms raw tabular/text data into a knowledge network and stores it in Neo4j.
+* **(1) Preprocessing:** Preprocess the raw dataset for cleaning and standardization.
+* **(2) Extract Edges & Nodes:** Extract entities (Nodes) and relationships (Edges) from the data to form the Graph structure.
+* **(3) Generate Embedding:** Pass the graph information through an Embedding Model to convert text/entities into mathematical vectors.
+* **(4) Save Embedding:** Store the Nodes, Edges, and Vector Embeddings into the **Neo4j Database**.
 
-### Luồng 2: Truy vấn và Sinh câu trả lời với LLM (Bottom Pipeline)
-Quá trình xử lý câu hỏi của người dùng theo thời gian thực (Real-time).
-* **(5) Generate Embedding (User):** Người dùng nhập câu hỏi. Câu hỏi này ngay lập tức được biến đổi thành Vector thông qua Embedding model.
-* **(6) Query:** Câu hỏi được gửi đến Ứng dụng trung tâm (GenAI App). Ứng dụng này sẽ tiến hành truy xuất (Retrieve) các ngữ cảnh liên quan (Context) từ **Neo4j Database** dựa trên độ tương đồng vector và mối quan hệ đồ thị.
-* **(7) Read Memory:** GenAI App truy xuất lịch sử trò chuyện cũ từ **Cache Memory** (có thể là Redis hoặc In-memory) để hiểu ngữ cảnh của cuộc hội thoại.
-* **(8) Create Prompt:** Tổng hợp dữ liệu để tạo ra một Prompt hoàn chỉnh bao gồm: `Câu lệnh gốc (Prompt) + Câu hỏi (Query) + Ngữ cảnh từ Neo4j (Context) + Lịch sử hội thoại (History)`.
-* **(9) Send to LLM:** Gửi Prompt hoàn chỉnh này tới **LLM Model** để xử lý và suy luận.
-* **(10) Response:** LLM trả về câu trả lời cho GenAI App.
-* **(11) Save Memory:** Câu trả lời mới được lưu ngược lại vào **Cache Memory** để phục vụ cho các câu hỏi tiếp theo của người dùng.
-* **(12) Output Answer:** Trả về câu trả lời cuối cùng hiển thị cho Người dùng.
+### Pipeline 2: Querying and Answer Generation with LLM (Bottom Pipeline)
+The process of handling user questions in real-time.
+* **(5) Generate Embedding (User):** The user inputs a query. This query is immediately transformed into a Vector via the Embedding model.
+* **(6) Query:** The query is sent to the core application (GenAI App). This app retrieves relevant context from the **Neo4j Database** based on vector similarity and graph relationships.
+* **(7) Read Memory:** The GenAI App retrieves past chat history from the **Cache Memory** (e.g., Redis or In-memory) to understand the conversational context.
+* **(8) Create Prompt:** Synthesize the data to create a complete Prompt, including: `Base Prompt + User Query + Neo4j Context + Chat History`.
+* **(9) Send to LLM:** Send this comprehensive prompt to the **LLM Model** for processing and reasoning.
+* **(10) Response:** The LLM returns the generated answer to the GenAI App.
+* **(11) Save Memory:** The new response is saved back into the **Cache Memory** to serve subsequent user queries.
+* **(12) Output Answer:** Return the final answer to the User.
 
 ---
 
-## Tech Stack (Công nghệ sử dụng)
+## Tech Stack
 
-* **Database:** 
-  * `Neo4j` (Lưu trữ Knowledge Graph & Vector Search)
-  * `PostgreSQL` (Lưu trữ Metadata & các dữ liệu cấu trúc khác như giá chứng khoán/tin tức)
-* **Backend / App:** Python (FastAPI / LangChain hoặc LlamaIndex - *Tùy chỉnh theo code của bạn*)
+* **Database:** * `Neo4j` (Stores Knowledge Graph & Vector Search)
+  * `PostgreSQL` (Stores Metadata & structured data)
+* **Backend:** Python 
+* **Frontend:** React TSX
 * **AI / ML:** LLM Models, Embedding Models.
-* **Infrastructure:** Docker & Docker Compose để quản lý container.
+* **Infrastructure:** Docker & Docker Compose for container management.
 
 ---
 
-## Hướng dẫn Cài đặt & Khởi chạy (Getting Started)
+## Getting Started
 
-### 1. Yêu cầu hệ thống
-* Cài đặt [Docker](https://docs.docker.com/get-docker/) và Docker Compose.
-* Môi trường Python 3.9+ (nếu chạy code local).
+### 1. Prerequisites
+* Install [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
+* Python 3.9+ environment (if running code locally).
 
-### 2. Thiết lập môi trường
-Tạo file `.env` ở thư mục gốc chứa cấu hình bảo mật dựa trên file `.env.example`:
-```bash
-# Ví dụ nội dung file .env
+### 2. Environment Setup
+Create a `.env` file in the root directory containing the security configurations based on the `.env.example` file:
+
+```env
+# Example .env file content
 DB_USER=minh_admin
 DB_PASSWORD=your_secret_password
 DB_NAME=news_intelligence
 PGADMIN_EMAIL=admin@admin.com
 PGADMIN_PASSWORD=your_secret_password
-# Cài đặt Pipeline: Bước 3 & Bước 4
-
-Tài liệu này mô tả mã nguồn Python để thực hiện quá trình tạo Vector Embedding từ dữ liệu văn bản và lưu trữ vào cơ sở dữ liệu đồ thị Neo4j.
-
-## Yêu cầu thư viện
-
-Trước khi chạy code, cần cài đặt các thư viện hỗ trợ:
-
-```bash
-pip install neo4j sentence-transformers python-dotenv
