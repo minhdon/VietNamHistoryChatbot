@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@layer base {
+  :root {
+    --bg-main: #f9f9f9;
+    --bg-sidebar: #f0f0f0;
+    --bg-input: #ffffff;
+    --text-main: #111111;
+    --text-secondary: #666666;
+    --border-color: #e5e5e5;
+    --accent: #111111;
+    --accent-hover: #333333;
+    --assistant-bg: #f9f9f9;
+    --user-bg: #f0f0f0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-main: #212121;
+      --bg-sidebar: #171717;
+      --bg-input: #2f2f2f;
+      --text-main: #ececec;
+      --text-secondary: #a3a3a3;
+      --border-color: #404040;
+      --accent: #ffffff;
+      --accent-hover: #e5e5e5;
+      --assistant-bg: #212121;
+      --user-bg: #2f2f2f;
+    }
+  }
+
+  body {
+    @apply antialiased text-main bg-main;
+  }
+}
+
+/* Custom properties for Tailwind */
+@theme {
+  --color-main: var(--bg-main);
+  --color-sidebar: var(--bg-sidebar);
+  --color-input: var(--bg-input);
+  --color-text-main: var(--text-main);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-assistant-bg: var(--assistant-bg);
+  --color-user-bg: var(--user-bg);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Markdown Styles */
+.prose {
+  color: var(--text-main);
+  line-height: 1.6;
+}
+.prose p {
+  margin-bottom: 1em;
+}
+.prose p:last-child {
+  margin-bottom: 0;
+}
+.prose a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+.prose strong {
+  font-weight: 600;
+  color: var(--text-main);
+}
+.prose code {
+  background-color: var(--bg-sidebar);
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.prose pre {
+  background-color: var(--bg-sidebar);
+  padding: 1em;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+.prose ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+.prose ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}

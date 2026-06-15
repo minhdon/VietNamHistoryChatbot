@@ -1,58 +1,72 @@
-import requests
-import logging
-from app.utils.db_neo4j import neo4j_db
+import time
 from sentence_transformers import SentenceTransformer
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from neo4j import GraphDatabase
 
-# URL cua Ollama (Giong het luc ban nap du lieu)
+# ==========================================
+# 1. CẤU HÌNH KẾT NỐI
+# ==========================================
+NEO4J_URI = "bolt://localhost:7687"
+NEO4J_USER = "neo4j"
+NEO4J_PASS = "123456789"
+
+print("⏳ Đang nạp Model Embedding (MPS)...")
 model = SentenceTransformer('keepitreal/vietnamese-sbert', device='mps')
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
 
-def get_query_embedding(text):
-    vector = model.encode(text)
-    return vector.tolist()
-
-def retrieve_context(user_question: str, top_k: int = 3):
-    """
-    Nhan cau hoi tu user, chuyen thanh vector bang OLLAMA va tim tren Neo4j.
-    """
-    logger.info(f"Dang tao vector bang OLLAMA cho cau hoi: '{user_question}'")
+# ==========================================
+# 2. HÀM TRUY VẤN CHỐNG TRÙNG LẶP (ANTI-DUPLICATE RETRIEVER)
+# ==========================================
+def retrieve_context(user_query, top_k=3, threshold=0.5): # Đặt ngưỡng 0.5 để nới lỏng kết quả
+    query_vector = model.encode(user_query).tolist()
     
-    # Tao vector tu cau hoi
-    question_vector = get_query_embedding(user_question)
-    
-    if not question_vector:
-        logger.error("Khong tao duoc vector tu Ollama.")
-        return []
-    
-    # Truy van Neo4j
     cypher_query = """
-    CALL db.index.vector.queryNodes('chunk_embeddings', $top_k, $question_vector)
-    YIELD node, score
-    RETURN node.id AS chunk_id, node.text AS text, score
+    CALL db.index.vector.queryNodes('chunk_embeddings', 500, $vector)
+    YIELD node AS chunk, score
+    WITH chunk.text AS text, max(score) AS best_score
+    RETURN text, best_score
+    ORDER BY best_score DESC
+    LIMIT $limit
     """
     
-    parameters = {
-        "top_k": top_k,
-        "question_vector": question_vector
-    }
-    
-    logger.info("Dang tim kiem ngu canh trong Neo4j...")
-    results = neo4j_db.query(cypher_query, parameters)
-    
-    return results
+    with driver.session() as session:
+        results = session.run(cypher_query, vector=query_vector, limit=top_k)
+        
+        context_list = []
+        for record in results:
+            score = record["best_score"]
+            # 🛡️ CHỐT CHẶN 1: Từ chối các vector điểm thấp
+            if score >= threshold:
+                context_list.append({
+                    "text": record["text"],
+                    "score": score
+                })
+        return context_list
 
+# ==========================================
+# 3. CHẠY THỬ NGHIỆM CHATBOT TRÊN TERMINAL
+# ==========================================
 if __name__ == "__main__":
-    test_question = "Hiệp định Paris năm 1973 được ký kết vào ngày nào?"
+    print("\n🤖 Hệ thống RAG đã sẵn sàng! Gõ 'exit' để thoát.")
     
-    contexts = retrieve_context(test_question)
-    
-    print("\nKET QUA TIM KIEM:")
-    if not contexts:
-        print("Khong tim thay ket qua.")
-    else:
-        for idx, res in enumerate(contexts):
-            # Nomic thường có score cosine rất cao, > 0.7 mới là tốt
-            print(f"--- Top {idx + 1} | Do tuong dong (Score): {res['score']:.4f} ---")
-            print(f"Chunk ID: {res['chunk_id']}")
-            print(f"Noi dung: {res['text']}\n")
+    while True:
+        user_input = input("\n👤 Bạn hỏi: ")
+        if user_input.lower() == 'exit':
+            break
+            
+        start_time = time.time()
+        
+        # Gọi tầng truy vấn
+        retrieved_chunks = retrieve_context(user_input, top_k=3)
+        
+        print(f"\n🔍 [Kết quả tìm kiếm từ Neo4j] (Tìm xong trong {(time.time() - start_time)*1000:.2f} ms):")
+        
+        if not retrieved_chunks:
+            print("❌ Không tìm thấy thông tin phù hợp.")
+            continue
+            
+        # Hiển thị kết quả đã được lọc trùng
+        for idx, chunk in enumerate(retrieved_chunks):
+            print(f"\n--- Đoạn trích {idx+1} (Độ khớp: {chunk['score']:.4f}) ---")
+            print(chunk['text'])
+            
+    driver.close()
