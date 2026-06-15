@@ -10,11 +10,13 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
 
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
     setIsSidebarOpen(false);
+    setSessionId(crypto.randomUUID());
   };
 
   const handleSelectPrompt = (prompt: string) => {
@@ -50,7 +52,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: textToSubmit.trim() }),
+        body: JSON.stringify({ question: textToSubmit.trim(), session_id: sessionId }),
       });
 
       if (!response.ok) {

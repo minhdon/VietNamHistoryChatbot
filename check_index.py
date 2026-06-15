@@ -1,4 +1,4 @@
-from app.services.retriever import driver
+from backend.app.services.retriever import driver
 
 with driver.session() as session:
     res = session.run("SHOW INDEXES YIELD name, type, labelsOrTypes, properties")
