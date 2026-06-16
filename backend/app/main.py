@@ -5,6 +5,7 @@ import uvicorn
 # Import các APIRouter từ thư mục routes
 from backend.app.routes import health
 from backend.app.routes import chatbot
+from backend.app.routes import ocr
 
 # Khởi tạo ứng dụng FastAPI
 app = FastAPI(
@@ -25,7 +26,7 @@ app.add_middleware(
 # ĐĂNG KÝ CÁC ROUTES VÀO HỆ THỐNG APP CHÍNH
 app.include_router(health.router)
 app.include_router(chatbot.router)
-
+app.include_router(ocr.router)
 @app.get("/")
 def index():
     return {"message": "Welcome to History Graph-RAG Gateway. Go to /docs for API documentation."}

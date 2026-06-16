@@ -11,12 +11,31 @@ function App() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
+    setSelectedFile(null);
     setIsSidebarOpen(false);
     setSessionId(crypto.randomUUID());
+  };
+
+  const handleSelectSession = async (id: string) => {
+    setSessionId(id);
+    setIsSidebarOpen(false);
+    setIsLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/sessions/${id}/messages`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error('Error fetching session messages:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSelectPrompt = (prompt: string) => {
@@ -47,12 +66,16 @@ function App() {
     setIsLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append('question', textToSubmit.trim());
+      if (sessionId) formData.append('session_id', sessionId);
+      if (selectedFile) formData.append('file', selectedFile);
+
+      setSelectedFile(null); // Clear after sending
+
       const response = await fetch('http://localhost:8000/api/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question: textToSubmit.trim(), session_id: sessionId }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -117,6 +140,7 @@ function App() {
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
         onNewChat={handleNewChat} 
+        onSelectSession={handleSelectSession}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -146,6 +170,8 @@ function App() {
               setInput={setInput} 
               onSubmit={() => submitMessage()} 
               isLoading={isLoading} 
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
             />
           </div>
         </div>

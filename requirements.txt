@@ -6,3 +6,7 @@ psycopg2-binary
 pgadmin4
 tqdm
 underthesea
+python-multipart
+pytesseract
+pypdf
+pillow

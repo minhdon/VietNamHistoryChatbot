@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { History, MessageSquare, Settings, PlusCircle, Compass } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -7,13 +7,32 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
 interface SidebarProps {
   onNewChat: () => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  onSelectSession: (id: string) => void;
 }
 
-export function Sidebar({ onNewChat, isOpen, setIsOpen }: SidebarProps) {
+export function Sidebar({ onNewChat, isOpen, setIsOpen, onSelectSession }: SidebarProps) {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/sessions')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSessions(data);
+        }
+      })
+      .catch(err => console.error('Failed to fetch sessions:', err));
+  }, []);
   return (
     <>
       {/* Mobile overlay */}
@@ -31,14 +50,14 @@ export function Sidebar({ onNewChat, isOpen, setIsOpen }: SidebarProps) {
       )}>
         {/* New Chat Button */}
         <div className="p-3">
-          <button 
-            onClick={onNewChat}
-            className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium"
-          >
-            <PlusCircle className="w-4 h-4" />
-            New chat
-          </button>
-        </div>
+  <button 
+    onClick={onNewChat}
+    className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium text-blue-500" // 💡 Thêm text-blue-500 ở đây
+  >
+    <PlusCircle className="w-4 h-4" />
+    New chat
+  </button>
+</div>
 
         {/* Navigation items */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
@@ -46,14 +65,22 @@ export function Sidebar({ onNewChat, isOpen, setIsOpen }: SidebarProps) {
             History
           </div>
           <div className="space-y-1">
-            <button className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm text-left truncate text-[var(--color-text-main)]">
-              <MessageSquare className="w-4 h-4 shrink-0" />
-              <span className="truncate">Tóm tắt bối cảnh Bộ luật Hồng Đức</span>
-            </button>
-            <button className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm text-left truncate text-[var(--color-text-main)]">
-              <MessageSquare className="w-4 h-4 shrink-0" />
-              <span className="truncate">Sự kiện Đổi quốc hiệu Đại Nam</span>
-            </button>
+            {sessions.map(session => (
+              <button 
+                key={session.id}
+                onClick={() => onSelectSession(session.id)}
+                className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium text-[var(--color-text-main)] text-left truncate"
+                title={session.title}
+              >
+                <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{session.title}</span>
+              </button>
+            ))}
+            {sessions.length === 0 && (
+              <div className="px-3 text-sm text-[var(--color-text-secondary)]">
+                No chat history
+              </div>
+            )}
           </div>
         </div>
 

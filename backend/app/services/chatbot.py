@@ -8,62 +8,99 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from backend.app.crud.chat import save_chat_message
 from backend.app.crud.chat import create_chat_session
+from backend.app.services.analyzer_questions import decompose_questions
+
 OLLAMA_URL = "http://localhost:11434"
 MODEL_NAME = "llama3.1"
 
-def chat_stream(question, context_list, session_id: str, db: Session):
-    # 🌟 CÁCH 1: In trực tiếp ra Terminal của Backend để kiểm tra chéo
-    print("\n[DEBUG] --- DANH SÁCH CONTEXT NHẬN TỪ NEO4J ---")
-    print(json.dumps(context_list, indent=2, ensure_ascii=False))
-    print("-----------------------------------------------\n")
+def chat_stream(question: str, context_list: list, session_id: str, db: Session):
+    # 1. Đảm bảo phiên chat (Session mẹ) đã tồn tại vững chắc trong Postgres
     db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not db_session:
         print(f"➕ [DB] Chưa có Session {session_id}, tiến hành tạo mới...")
-        db_session = ChatSession(id=session_id, title="Cuộc hội thoại mới")
+        title = question[:50] + "..." if len(question) > 50 else question
+        db_session = ChatSession(id=session_id, title=title)
         db.add(db_session)
-        db.commit() # Ép Postgres ghi xuống đĩa cứng bảng mẹ liền!
+        db.commit()
         db.refresh(db_session)
     
-    # 🚨 CHỐT CHẶN 2: Đảm bảo đối tượng session đã nằm vững chắc trong DB rồi mới lưu tin nhắn con
+    # 2. Lưu câu hỏi GỐC (chứa chuỗi nhiều câu hỏi hoặc đoạn văn bản OCR) của User vào DB
     try:
         user_msg = ChatMessage(session_id=session_id, role="user", content=question)
         db.add(user_msg)
-        db.commit() # Ép commit tin nhắn user liền
+        db.commit()
     except Exception as e:
-        db.rollback() # Nếu lỗi thì rollback để tránh nghẽn transaction
+        db.rollback()
         print(f"❌ Lỗi lưu tin nhắn user: {e}")
         raise e
 
-    # Các đoạn bên dưới giữ nguyên...
-    prompt = ask_llm(question, context_list)
+    # 3. GỌI HÀM PHÂN RÃ CÂU HỎI (Tách chuỗi thô thành mảng câu hỏi đơn)
+    # Ví dụ: ["Câu hỏi 1", "Câu hỏi 2"]
+    sub_questions = decompose_questions(question)
+    print(f"🔍 [DEBUG MULTI-QUERY] Đã phân rã thành {len(sub_questions)} câu hỏi nhỏ: {sub_questions}")
     
     def stream_response():
-        # 🌟 CÁCH 2: Phát (yield) danh sách nguồn về cho Frontend đầu tiên trước khi chữ chạy ra
-        # Tạo gói tin có type là 'sources' để Frontend dễ phân biệt với 'content'
-        yield f"data: {json.dumps({'type': 'sources', 'data': context_list}, ensure_ascii=False)}\n\n"
-
-        if not prompt:
-            yield f"data: {json.dumps({'type': 'content', 'delta': 'Dữ liệu hiện tại của tôi không có thông tin về vấn đề này.'}, ensure_ascii=False)}\n\n"
-            return
-            
-        payload = {
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": True,
-            "options": {
-                "temperature": 0.0,  
-                "top_p": 0.1
-            }
-        }
-        
-        response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, stream=True)
         full_ai_answer = ""
-        for line in response.iter_lines():
-            if line:
-                chunk_json = json.loads(line.decode('utf-8'))
-                delta = chunk_json.get('response', '')
-                full_ai_answer += delta
-                yield f"data: {json.dumps({'type': 'content', 'delta': chunk_json.get('response', '')}, ensure_ascii=False)}\n\n"
+        
+        # 🔑 VÒNG LẶP VÀNG: Duyệt qua từng câu hỏi nhỏ để xử lý gối đầu nhau
+        for index, sub_q in enumerate(sub_questions):
+            
+            # IN CÂU HỎI LÊN GIAO DIỆN (NẾU CÓ NHIỀU CÂU HỎI)
+            if len(sub_questions) > 1:
+                question_header = f"**Câu hỏi {index + 1}: {sub_q}**\n\n"
+                yield f"data: {json.dumps({'type': 'content', 'delta': question_header}, ensure_ascii=False)}\n\n"
+                full_ai_answer += question_header
+
+            # TRÍCH XUẤT CONTEXT RIÊNG CHO CÂU HỎI NHỎ NÀY TỪ NEO4J
+            current_context = retrieve_context(sub_q)
+            
+            # In debug ra terminal backend xem nó bốc trúng tài liệu không
+            print(f"\n[DEBUG] --- CONTEXT CHO CÂU HỎI {index + 1}: {sub_q} ---")
+            print(json.dumps(current_context, indent=2, ensure_ascii=False))
+            print("-----------------------------------------------------------\n")
+
+            # Phát nguồn (sources) của riêng câu hỏi này lên cho FE nạp
+            yield f"data: {json.dumps({'type': 'sources', 'data': current_context}, ensure_ascii=False)}\n\n"
+
+            # Dựng prompt kết hợp context
+            prompt = ask_llm(sub_q, current_context)
+            
+            if not prompt:
+                msg_refuse = "Dữ liệu hiện tại của tôi không có thông tin về vấn đề này."
+                yield f"data: {json.dumps({'type': 'content', 'delta': msg_refuse}, ensure_ascii=False)}\n\n"
+                full_ai_answer += msg_refuse
+                continue # Nhảy sang câu tiếp theo luôn
+                
+            payload = {
+                "model": MODEL_NAME,
+                "prompt": prompt,
+                "stream": True,
+                "options": {
+                    "temperature": 0.0,  
+                    "top_p": 0.1
+                }
+            }
+            
+            # Gọi Ollama sinh chữ dạng stream cho câu hỏi hiện tại
+            response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, stream=True)
+            
+            for line in response.iter_lines():
+                if line:
+                    chunk_json = json.loads(line.decode('utf-8'))
+                    delta = chunk_json.get('response', '')
+                    full_ai_answer += delta
+                    # Bắn chữ về cho giao diện theo thời gian thực
+                    yield f"data: {json.dumps({'type': 'content', 'delta': delta}, ensure_ascii=False)}\n\n"
+            
+            # Ngắt dòng ngăn cách rõ ràng giữa các câu hỏi cho người dùng dễ đọc trên FE
+            if index < len(sub_questions) - 1:
+                separator = "\n\n---\n\n"
+                yield f"data: {json.dumps({'type': 'content', 'delta': separator}, ensure_ascii=False)}\n\n"
+                full_ai_answer += separator
+
+        # 🚨 ĐIỂM NEO KINH ĐIỂN: Kết thúc toàn bộ vòng lặp, AI đã trả lời xong tất cả các câu hỏi!
+        # Tiến hành lưu duy nhất 1 khối câu trả lời tổng hợp này vào Postgres
         if full_ai_answer.strip():
-            save_chat_message(db, session_id, role="assistant", content=full_ai_answer.strip())        
+            save_chat_message(db, session_id=session_id, role="assistant", content=full_ai_answer.strip())        
+            
     return StreamingResponse(stream_response(), media_type="text/event-stream")
