@@ -18,4 +18,4 @@ PGADMIN_PASSWORD=123456789
 
 # Cấu hình Neo4j (Nếu sau này bạn muốn bật lại xác thực auth)
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=123456789
+NEO4J_PASSWORD=1234567891

@@ -5,14 +5,13 @@ from sqlalchemy.orm import relationship
 import uuid
 from backend.app.database.session import Base
 
-class ChatSession(Base):
-    __tablename__ = "chat_sessions"
+class User(Base):
+    __tablename__ = "user"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title = Column(Text, server_default="Cuộc hội thoại mới")
+    username=Column(String(50), unique=True, nullable=False)
+    password=Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    user_id=Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Mối quan hệ 1 - Nhiều: Một Session có nhiều Messages
-    messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
-    user = relationship("User", back_populates="sessions")
+    sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
