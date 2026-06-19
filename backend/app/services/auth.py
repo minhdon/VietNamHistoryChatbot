@@ -2,10 +2,10 @@ from backend.app.models.user import User
 from sqlalchemy.orm import Session
 from backend.app.core.security import verify_password,hash_password,create_access_token
 from datetime import timedelta
-from backend.app.database.session import Session
-from backend.app.schema.user import User
+from backend.app.schema.user import User as RequestUser
 from fastapi import HTTPException, status
-def authenticate_user(db: Session, request_user: User):
+
+def authenticate_user(db: Session, request_user: RequestUser):
     user = db.query(User).filter(User.username == request_user.username).first()
     if not user:
         raise HTTPException(

@@ -1,14 +1,17 @@
-from passlib.context import CryptContext
+import bcrypt
 import datetime
 import jwt
 from dotenv import load_dotenv
+import os
+load_dotenv()  # Load environment variables from .env file
 
-SECRET_KEY=load_dotenv().get("JWT_SECRET_KEY", "default_secret_key")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "default_secret_key")
 ALGORITHM="HS256"
-pwd_context=CryptContext(schemes=["bcrypt"], deprecated="auto")
 ACCESS_TOKEN_EXPIRE_MINUTES=60*24
 def  hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password[:72].encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 def check_password_conditions(password: str) -> bool:
     # Kiểm tra độ dài tối thiểu
     if len(password) < 8:
@@ -33,7 +36,10 @@ def check_password_conditions(password: str) -> bool:
 
     return True
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password[:72].encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 def create_access_token(data: dict, expires_delta: datetime.timedelta = None) -> str:
     to_encode = data.copy()
     if expires_delta:
@@ -43,3 +49,30 @@ def create_access_token(data: dict, expires_delta: datetime.timedelta = None) ->
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from backend.app.database.session import get_db
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except Exception:
+        raise credentials_exception
+    
+    from backend.app.models.user import User
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    return user

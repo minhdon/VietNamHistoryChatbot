@@ -13,13 +13,13 @@ from backend.app.services.analyzer_questions import decompose_questions
 OLLAMA_URL = "http://localhost:11434"
 MODEL_NAME = "llama3.1"
 
-def chat_stream(question: str, context_list: list, session_id: str, db: Session):
+def chat_stream(question: str, context_list: list, session_id: str, db: Session, user_id: int):
     # 1. Đảm bảo phiên chat (Session mẹ) đã tồn tại vững chắc trong Postgres
     db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not db_session:
         print(f"➕ [DB] Chưa có Session {session_id}, tiến hành tạo mới...")
         title = question[:50] + "..." if len(question) > 50 else question
-        db_session = ChatSession(id=session_id, title=title)
+        db_session = ChatSession(id=session_id, title=title, user_id=user_id)
         db.add(db_session)
         db.commit()
         db.refresh(db_session)

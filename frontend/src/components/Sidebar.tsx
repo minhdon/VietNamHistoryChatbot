@@ -20,11 +20,19 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
 }
 
+import { useAuth } from '../context/AuthContext';
+
 export function Sidebar({ onNewChat, isOpen, setIsOpen, onSelectSession }: SidebarProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const { token } = useAuth();
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/sessions')
+    if (!token) return;
+    fetch('http://localhost:8000/api/sessions', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -32,7 +40,7 @@ export function Sidebar({ onNewChat, isOpen, setIsOpen, onSelectSession }: Sideb
         }
       })
       .catch(err => console.error('Failed to fetch sessions:', err));
-  }, []);
+  }, [token]);
   return (
     <>
       {/* Mobile overlay */}

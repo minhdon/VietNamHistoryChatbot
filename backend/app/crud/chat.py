@@ -3,10 +3,10 @@ from uuid import UUID
 from backend.app.models.chat_message import ChatMessage
 from backend.app.models.chat_session import ChatSession
 
-def create_chat_session(db: Session, session_id: UUID) -> ChatSession:
+def create_chat_session(db: Session, session_id: UUID, user_id: int) -> ChatSession:
     db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not db_session:
-        db_session=ChatSession(id=session_id)
+        db_session=ChatSession(id=session_id, user_id=user_id)
         db.add(db_session)
         db.commit()
         db.refresh(db_session)
@@ -17,5 +17,5 @@ def save_chat_message(db: Session, session_id: UUID, role: str, content: str) ->
     db.commit()
     db.refresh(db_message)
     return db_message
-def get_user_chat_sessions(db: Session, session_id: UUID):
-    return db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+def get_user_chat_sessions(db: Session, user_id: int):
+    return db.query(ChatSession).filter(ChatSession.user_id == user_id).order_by(ChatSession.created_at.desc()).all()

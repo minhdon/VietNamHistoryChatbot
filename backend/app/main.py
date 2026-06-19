@@ -6,6 +6,7 @@ import uvicorn
 from backend.app.routes import health
 from backend.app.routes import chatbot
 from backend.app.routes import ocr
+from backend.app.routes import auth
 
 # Khởi tạo ứng dụng FastAPI
 app = FastAPI(
@@ -17,7 +18,13 @@ app = FastAPI(
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +34,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(chatbot.router)
 app.include_router(ocr.router)
+app.include_router(auth.router)
 @app.get("/")
 def index():
     return {"message": "Welcome to History Graph-RAG Gateway. Go to /docs for API documentation."}

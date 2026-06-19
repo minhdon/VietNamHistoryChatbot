@@ -9,6 +9,8 @@ from backend.app.database.session import get_db
 from sqlalchemy.orm import Session
 from uuid import uuid4,UUID
 from backend.app.crud.chat import save_chat_message, create_chat_session,get_user_chat_sessions
+from backend.app.core.security import get_current_user
+from backend.app.models.user import User
 from pypdf import PdfReader
 from PIL import Image
 import pytesseract
@@ -40,7 +42,8 @@ def stream_chatbot_response(
     question: str = Form(...),
     session_id: str = Form(None),
     file: UploadFile = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     user_question = question.strip()
     
@@ -54,13 +57,13 @@ def stream_chatbot_response(
  
     session_id = session_id or str(uuid4())
     context = retrieve_context(user_question)
-    return chat_stream(user_question, context, session_id=session_id, db=db)
+    return chat_stream(user_question, context, session_id=session_id, db=db, user_id=current_user.id)
 @router.get("/sessions")
-def list_sessions(db: Session = Depends(get_db)):
-    sessions = get_user_chat_sessions(db, session_id=None)
+def list_sessions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sessions = get_user_chat_sessions(db, user_id=current_user.id)
     return [{"id": str(s.id), "title": s.title, "created_at": s.created_at} for s in sessions]
 
 @router.get("/sessions/{session_id}/messages")
-def get_session_messages(session_id: str, db: Session = Depends(get_db)):
+def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc()).all()
     return [{"id": str(msg.id), "role": msg.role, "content": msg.content} for msg in messages]
