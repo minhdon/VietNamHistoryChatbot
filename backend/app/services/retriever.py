@@ -9,14 +9,14 @@ NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASS = "123456789"
 
-print("⏳ Đang nạp Model Embedding (MPS)...")
-model = SentenceTransformer('keepitreal/vietnamese-sbert', device='mps')
+print("⏳ Đang nạp Model Embedding (CPU) để tránh lỗi MPS...")
+model = SentenceTransformer('keepitreal/vietnamese-sbert', device='cpu')
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
 
 # ==========================================
 # 2. HÀM TRUY VẤN CHỐNG TRÙNG LẶP (ANTI-DUPLICATE RETRIEVER)
 # ==========================================
-def retrieve_context(user_query, top_k=3, threshold=0.5): # Đặt ngưỡng 0.5 để nới lỏng kết quả
+def retrieve_context(user_query, top_k=3, threshold=0.2): # Đặt ngưỡng 0.2 để nới lỏng kết quả do embedding đôi khi khác biệt lớn
     query_vector = model.encode(user_query).tolist()
     
     cypher_query = """

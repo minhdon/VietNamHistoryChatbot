@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, MessageSquare, Settings, PlusCircle, Compass } from 'lucide-react';
+import { History, MessageSquare, Settings, PlusCircle, Compass, LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 
 export function Sidebar({ onNewChat, isOpen, setIsOpen, onSelectSession }: SidebarProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
 
   useEffect(() => {
     if (!token) return;
@@ -94,13 +94,14 @@ export function Sidebar({ onNewChat, isOpen, setIsOpen, onSelectSession }: Sideb
 
         {/* Bottom actions */}
         <div className="p-3 border-t border-[var(--color-border)] space-y-1">
-          <button className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium">
-            <Compass className="w-4 h-4" />
-            Explore
-          </button>
-          <button className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium">
+         
+          <button className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium text-blue-500">
             <Settings className="w-4 h-4" />
             Settings
+          </button>
+          <button onClick={logout} className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium text-red-500 hover:text-red-400">
+            <LogOut className="w-4 h-4" />
+            Đăng xuất
           </button>
         </div>
       </div>

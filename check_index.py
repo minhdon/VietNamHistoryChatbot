@@ -1,6 +1,5 @@
-from backend.app.services.retriever import driver
+from backend.app.utils.db_neo4j import neo4j_db
 
-with driver.session() as session:
-    res = session.run("SHOW INDEXES YIELD name, type, labelsOrTypes, properties")
-    for r in res:
-        print(f"Name: {r['name']}, Type: {r['type']}, Labels: {r['labelsOrTypes']}, Props: {r['properties']}")
+res = neo4j_db.query("SHOW INDEXES YIELD * WHERE type = 'VECTOR'")
+for r in res:
+    print(r)

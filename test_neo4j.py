@@ -1,5 +1,8 @@
-from backend.app.services.retriever import retrieve_context
-import json
+import sys
+from backend.app.utils.db_neo4j import neo4j_db
 
-res = retrieve_context("tại sao ko có context nào được trả về", threshold=0.0)
-print(json.dumps(res, ensure_ascii=False, indent=2))
+res = neo4j_db.query("CALL apoc.help('apoc')")
+if res is None:
+    print("APOC IS NOT INSTALLED OR QUERY FAILED")
+else:
+    print("APOC IS INSTALLED")
